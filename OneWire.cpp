@@ -153,8 +153,8 @@ sample code bearing this copyright.
 #include "OneWire.h"
 
 #ifdef ARDUINO_ARCH_ESP32
-#define noInterrupts() {portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;portENTER_CRITICAL(&mux)
-#define interrupts() portEXIT_CRITICAL(&mux);}
+#define noInterruptsOneWire() {portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;portENTER_CRITICAL(&mux)
+#define interruptsOneWire() portEXIT_CRITICAL(&mux);}
 #endif
 
 OneWire::OneWire(uint8_t pin)
@@ -181,26 +181,26 @@ uint8_t OneWire::reset(void)
 #endif
 {
     IO_REG_TYPE mask IO_REG_MASK_ATTR = bitmask;
-    volatile IO_REG_TYPE *reg IO_REG_BASE_ATTR = baseReg;
+    volatile IO_REG_TYPE *reg __attribute__((unused)) IO_REG_BASE_ATTR = baseReg  ;
     uint8_t r;
     uint8_t retries = 125;
-    noInterrupts();
+    noInterruptsOneWire();
     DIRECT_MODE_INPUT(reg, mask);
-    interrupts();
+    interruptsOneWire();
     // wait until the wire is high... just in case
     do {
         if (--retries == 0) return 0;
         delayMicroseconds(2);
     } while ( !DIRECT_READ(reg, mask));
  
-    noInterrupts();
+    noInterruptsOneWire();
     DIRECT_WRITE_LOW(reg, mask);
     DIRECT_MODE_OUTPUT(reg, mask);  // drive output low
     delayMicroseconds(480);
     DIRECT_MODE_INPUT(reg, mask);   // allow it to float
     delayMicroseconds(70);
     r = !DIRECT_READ(reg, mask);
-    interrupts();
+    interruptsOneWire();
     delayMicroseconds(410);
   return r;
 }
@@ -216,23 +216,23 @@ void OneWire::write_bit(uint8_t v)
 #endif
 {
 	IO_REG_TYPE mask IO_REG_MASK_ATTR = bitmask;
-	volatile IO_REG_TYPE *reg IO_REG_BASE_ATTR = baseReg;
+	volatile IO_REG_TYPE *reg __attribute__((unused)) IO_REG_BASE_ATTR = baseReg;
 
 	if (v & 1) {
-        noInterrupts();
+        noInterruptsOneWire();
 		DIRECT_WRITE_LOW(reg, mask);
 		DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
 		delayMicroseconds(10);
 		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
-        interrupts();
+        interruptsOneWire();
 		delayMicroseconds(55);
 	} else {
-        noInterrupts();
+        noInterruptsOneWire();
 		DIRECT_WRITE_LOW(reg, mask);
 		DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
 		delayMicroseconds(65);
 		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
-        interrupts();
+        interruptsOneWire();
 		delayMicroseconds(5);
 	}
 }
@@ -248,17 +248,18 @@ uint8_t OneWire::read_bit(void)
 #endif
 {
 	IO_REG_TYPE mask IO_REG_MASK_ATTR = bitmask;
-	volatile IO_REG_TYPE *reg IO_REG_BASE_ATTR = baseReg;
+	volatile IO_REG_TYPE *reg __attribute__((unused)) IO_REG_BASE_ATTR = baseReg;
 	uint8_t r;
 
-    noInterrupts();
+
+    noInterruptsOneWire();
 	DIRECT_MODE_OUTPUT(reg, mask);
 	DIRECT_WRITE_LOW(reg, mask);
 	delayMicroseconds(3);
 	DIRECT_MODE_INPUT(reg, mask);	// let pin float, pull up will raise
 	delayMicroseconds(10);
 	r = DIRECT_READ(reg, mask);
-    interrupts();
+    interruptsOneWire();
 	delayMicroseconds(53);
 	return r;
 }
@@ -277,10 +278,10 @@ void OneWire::write(uint8_t v, uint8_t power /* = 0 */) {
     OneWire::write_bit( (bitMask & v)?1:0);
   }
   if ( !power) {
-      noInterrupts();
+      noInterruptsOneWire();
       DIRECT_MODE_INPUT(baseReg, bitmask);
       DIRECT_WRITE_LOW(baseReg, bitmask);
-      interrupts();
+      interruptsOneWire();
   }
 }
 
@@ -288,10 +289,10 @@ void OneWire::write_bytes(const uint8_t *buf, uint16_t count, bool power /* = 0 
   for (uint16_t i = 0 ; i < count ; i++)
     write(buf[i]);
   if (!power) {
-    noInterrupts();
+    noInterruptsOneWire();
     DIRECT_MODE_INPUT(baseReg, bitmask);
     DIRECT_WRITE_LOW(baseReg, bitmask);
-    interrupts();
+    interruptsOneWire();
   }
 }
 
@@ -335,9 +336,9 @@ void OneWire::skip()
 
 void OneWire::depower()
 {
-    noInterrupts();
+    noInterruptsOneWire();
     DIRECT_MODE_INPUT(baseReg, bitmask);
-    interrupts();
+    interruptsOneWire();
 }
 
 #if ONEWIRE_SEARCH
@@ -617,9 +618,9 @@ uint16_t OneWire::crc16(const uint8_t* input, uint16_t len, uint16_t crc)
 #endif
 
 
-#ifdef ARDUINO_ARCH_ESP32
-#undef noInterrupts()
-#undef interrupts()
-#endif
+//#ifdef ARDUINO_ARCH_ESP32
+//#undef noInterrupts()
+//#undef interrupts()
+//#endif
 
 #endif
